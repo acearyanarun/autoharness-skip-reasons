@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AutoHarness — Skip reasons and issue coverage</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  --bg:#f6f7f4; --panel:#ffffff; --ink:#1c2230; --ink-2:#4b5566; --line:#d9ddd6;
+  --root:#2f3b52; --covered:#2c7a5b; --partial:#b7791f; --related:#5a6a8a; --none:#b23a3a; --resolved:#3a7d8c; --design:#7a7f89;
+  --tint:#eef0ea;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#161a22; --panel:#1e2430; --ink:#e8ebef; --ink-2:#a3acbb; --line:#323a48;
+    --root:#b8c4dc; --covered:#5bbf93; --partial:#e0a84a; --related:#8ea0c4; --none:#e0706f; --resolved:#6fb8c8; --design:#9aa1ad;
+    --tint:#242b38;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#161a22; --panel:#1e2430; --ink:#e8ebef; --ink-2:#a3acbb; --line:#323a48;
+  --root:#b8c4dc; --covered:#5bbf93; --partial:#e0a84a; --related:#8ea0c4; --none:#e0706f; --resolved:#6fb8c8; --design:#9aa1ad;
+  --tint:#242b38;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:16px;line-height:1.5}
+.wrap{max-width:1040px;margin:0 auto;padding:40px 20px 72px}
+h1{font-size:1.6rem;font-weight:600;margin:0 0 6px;letter-spacing:-.01em}
+.lede{color:var(--ink-2);margin:0 0 28px;max-width:62ch}
+.mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace}
+
+/* tree */
+.tree-box{overflow-x:auto;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px}
+svg{display:block;width:100%;min-width:760px;height:auto;font-family:inherit}
+.node{cursor:pointer}
+.node rect{fill:var(--panel);stroke:var(--line);stroke-width:1.2;transition:stroke .15s}
+.node:hover rect,.node.active rect{stroke:var(--ink);stroke-width:1.6}
+.node:focus{outline:none}
+.node:focus-visible rect{stroke:var(--ink);stroke-width:2;stroke-dasharray:3 2}
+.node text{fill:var(--ink)}
+.node .sub{fill:var(--ink-2);font-size:12px}
+.node .n{font-size:22px;font-weight:600}
+.node .t{font-size:13px;font-weight:500}
+.branch{fill:none;stroke-linecap:butt;opacity:.55}
+.rootbox rect{fill:var(--root);stroke:none}
+.rootbox text{fill:var(--bg)}
+.tag{font-size:11px;font-weight:500}
+
+/* legend */
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;margin:12px 0 0;padding:0;list-style:none;color:var(--ink-2);font-size:.85rem}
+.legend li{display:flex;align-items:center;gap:7px}
+.sw{width:10px;height:10px;border-radius:2px;display:inline-block}
+
+/* detail */
+.detail{margin-top:22px;background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--line);border-radius:6px;padding:20px 22px}
+.detail h2{margin:0;font-size:1.15rem;font-weight:600}
+.detail .meta{color:var(--ink-2);margin:2px 0 14px}
+.detail p{margin:0 0 10px;max-width:70ch}
+.empty{color:var(--ink-2)}
+table{border-collapse:collapse;width:100%;font-size:.92rem;margin-top:6px}
+th,td{text-align:left;padding:7px 10px 7px 0;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--ink-2);font-weight:500;font-size:.8rem}
+tr:last-child td{border-bottom:none}
+.pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:.78rem;font-weight:500;color:#fff}
+.gap{margin-top:14px;padding:10px 12px;background:var(--tint);border-radius:4px;max-width:70ch}
+
+/* second section */
+.section{margin-top:44px}
+.section h2{font-size:1.15rem;font-weight:600;margin:0 0 4px}
+.section .lede{margin-bottom:16px}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.col{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:14px 16px}
+.col h3{margin:0 0 4px;font-size:1rem;font-weight:600}
+.col p{margin:0;color:var(--ink-2);font-size:.92rem}
+.foot{margin-top:36px;color:var(--ink-2);font-size:.82rem}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Why AutoHarness skips 14,258 candidate functions</h1>
+  <p class="lede">Each branch is one skip reason, drawn in proportion to its function count. Select a branch to see which Kani issues and PRs address it and how much of it is still uncovered.</p>
+
+  <div class="tree-box"><svg id="tree" viewBox="0 0 960 330" role="img" aria-label="Tree of skipped functions by reason"></svg></div>
+  <ul class="legend">
+    <li><span class="sw" style="background:var(--partial)"></span>Directly mapped issues (partial coverage)</li>
+    <li><span class="sw" style="background:var(--related)"></span>Related work only, no direct issue</li>
+    <li><span class="sw" style="background:var(--resolved)"></span>Resolved by configuration</li>
+    <li><span class="sw" style="background:var(--design)"></span>By design / not actionable</li>
+  </ul>
+
+  <div class="detail" id="detail"></div>
+
+  <div class="section">
+    <h2>Work outside the skip counts</h2>
+    <p class="lede">14 further issues don't change the 14,258 figure but affect whether generated harnesses can be trusted. They answer a different question from the tree above.</p>
+    <div class="cols">
+      <div class="col"><h3>Crashes and ICEs</h3><p>AutoHarness or the compiler fails outright on some inputs. Fixing these makes runs complete, not necessarily larger.</p></div>
+      <div class="col"><h3>Soundness</h3><p>Generated harnesses that could pass while missing real behavior. Directly relevant to the reliability concern raised by the sponsor.</p></div>
+      <div class="col"><h3>Tooling</h3><p>Usability and infrastructure gaps in the AutoHarness workflow itself.</p></div>
+    </div>
+  </div>
+
+  <p class="foot">Source: Kani AutoHarness Skip-Reason Issue Classification. Counts are reproduced as reported and not recomputed. Data lives in the <span class="mono">DATA</span> object at the top of this page's script so it can be moved to a JSON file and regenerated by CI.</p>
+</div>
+
+<script>
+const DATA = {
+  total: 14258,
+  categories: [
+    { id:"arb", name:"Missing Arbitrary", count:6869, kind:"partial", kindLabel:"Directly mapped, ~17% covered",
+      summary:"Types that lack an Arbitrary implementation. Seven open issues plus an umbrella issue track this; together they map to roughly 17% of the missing-type occurrences.",
+      issues:[
+        {issue:"#4823", topic:"Formatter", pr:"PR #4824", status:"Open"},
+        {issue:"#4807", topic:"Vec / String / Box / …", pr:"No PR", status:"Open"},
+        {issue:"#4805", topic:"ByteStr", pr:"PR #4806", status:"Open"},
+        {issue:"#4803", topic:"CStr", pr:"PR #4804", status:"Open"},
+        {issue:"#4808", topic:"Wtf8", pr:"PR #4809", status:"Open"},
+        {issue:"#4811", topic:"Searcher types", pr:"In progress", status:"Open"},
+        {issue:"#4758", topic:"Pattern types", pr:"PR #4780", status:"Open"}
+      ],
+      gap:"About 83% of missing-type occurrences have no issue yet. This is the largest actionable gap." },
+    { id:"gen", name:"Generic: no candidate type", count:4511, kind:"related", kindLabel:"No direct issue",
+      summary:"Generic functions where AutoHarness can't pick a concrete type to instantiate.",
+      issues:[{issue:"—", topic:"Related work", pr:"PR #4706", status:"Related"}],
+      gap:"No issue is filed for this category as such. PR #4706 touches it but does not claim it." },
+    { id:"const", name:"Non-usize const generic", count:1581, kind:"related", kindLabel:"No direct issue",
+      summary:"Const generics with a type other than usize, which the current instantiation logic doesn't handle.",
+      issues:[{issue:"#4794", topic:"Related", pr:"—", status:"Related"},{issue:"#4826", topic:"Related", pr:"—", status:"Related"}],
+      gap:"Two related issues exist; neither is scoped to this skip reason directly." },
+    { id:"bound", name:"Requires bounded arguments", count:1102, kind:"resolved", kindLabel:"Resolved by flag",
+      summary:"Functions that need bounded inputs. Handled by the --bounded-arguments option rather than a code change per type.",
+      issues:[{issue:"#4751", topic:"Bounded arguments", pr:"PR #4793", status:"Resolved"}],
+      gap:"No remaining gap. These functions become candidates once the flag is enabled." },
+    { id:"body", name:"No function body", count:195, kind:"design", kindLabel:"Not actionable",
+      summary:"All 195 are compiler intrinsics with no body to verify. Earlier issues about this were closed.",
+      issues:[],
+      gap:"By design. Not expected to change the skip count." }
+  ]
+};
+
+const COLORS = {partial:"var(--partial)", related:"var(--related)", resolved:"var(--resolved)", design:"var(--design)"};
+const svg = document.getElementById("tree");
+const NS = "http://www.w3.org/2000/svg";
+const el = (t,a={},txt)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);if(txt!=null)e.textContent=txt;return e;};
+const fmt = n=>n.toLocaleString("en-US");
+
+function draw(){
+  svg.innerHTML="";
+  const W=960, rootY=20, rootH=54, rootW=260, rx=(W-rootW)/2;
+  const leafY=210, leafH=96, gap=14, n=DATA.categories.length;
+  const leafW=(W-24-gap*(n-1))/n;
+  const maxStroke=44, minStroke=4;
+
+  // root
+  const root=el("g",{class:"rootbox"});
+  root.appendChild(el("rect",{x:rx,y:rootY,width:rootW,height:rootH,rx:4}));
+  root.appendChild(el("text",{x:W/2,y:rootY+24,"text-anchor":"middle","font-size":"20","font-weight":"600"},fmt(DATA.total)));
+  root.appendChild(el("text",{x:W/2,y:rootY+43,"text-anchor":"middle","font-size":"12"},"skipped candidate functions"));
+  svg.appendChild(root);
+
+  const busY=rootY+rootH, busX0=W/2;
+  DATA.categories.forEach((c,i)=>{
+    const x=12+i*(leafW+gap), cx=x+leafW/2;
+    const sw=Math.max(minStroke, maxStroke*(c.count/DATA.total));
+    const d=`M${busX0},${busY} C${busX0},${busY+70} ${cx},${leafY-70} ${cx},${leafY}`;
+    svg.appendChild(el("path",{d,class:"branch",stroke:COLORS[c.kind],"stroke-width":sw,"data-id":c.id}));
+  });
+  DATA.categories.forEach((c,i)=>{
+    const x=12+i*(leafW+gap);
+    const g=el("g",{class:"node",tabindex:"0",role:"button","data-id":c.id,"aria-label":c.name+", "+fmt(c.count)});
+    g.appendChild(el("rect",{x,y:leafY,width:leafW,height:leafH,rx:4}));
+    g.appendChild(el("rect",{x,y:leafY,width:leafW,height:4,fill:COLORS[c.kind],stroke:"none"}));
+    g.appendChild(el("text",{x:x+12,y:leafY+36,class:"n"},fmt(c.count)));
+    // wrap name if long
+    const words=c.name.split(" "); let l1="",l2="";
+    for(const w of words){ if((l1+" "+w).trim().length<=20&&!l2) l1=(l1+" "+w).trim(); else l2=(l2+" "+w).trim(); }
+    g.appendChild(el("text",{x:x+12,y:leafY+56,class:"t"},l1));
+    if(l2) g.appendChild(el("text",{x:x+12,y:leafY+72,class:"t"},l2));
+    g.appendChild(el("text",{x:x+12,y:leafY+(l2?88:74),class:"sub"},c.kindLabel));
+    g.addEventListener("click",()=>select(c.id));
+    g.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();select(c.id);}});
+    svg.appendChild(g);
+  });
+}
+
+function select(id){
+  const c=DATA.categories.find(x=>x.id===id);
+  document.querySelectorAll(".node").forEach(n=>n.classList.toggle("active",n.dataset.id===id));
+  document.querySelectorAll(".branch").forEach(b=>b.style.opacity=b.dataset.id===id?"0.95":"0.35");
+  const d=document.getElementById("detail");
+  d.style.borderLeftColor=COLORS[c.kind];
+  const pct=(100*c.count/DATA.total).toFixed(1);
+  let rows=c.issues.length?`<table><tr><th>Issue</th><th>Covers</th><th>PR</th><th>Status</th></tr>`+
+    c.issues.map(r=>`<tr><td class="mono">${r.issue}</td><td>${r.topic}</td><td class="mono">${r.pr}</td><td><span class="pill" style="background:${COLORS[c.kind]}">${r.status}</span></td></tr>`).join("")+`</table>`
+    :`<p class="empty">No GitHub issues to track. Earlier issues about this were closed.</p>`;
+  d.innerHTML=`<h2>${c.name}</h2><p class="meta">${fmt(c.count)} functions, ${pct}% of skipped. ${c.kindLabel}.</p><p>${c.summary}</p>${rows}<div class="gap"><strong>Remaining gap.</strong> ${c.gap}</div>`;
+}
+
+draw();
+select("arb");
+</script>
+</body>
+</html>
